@@ -3,10 +3,22 @@ import json
 import re
 import mariadb
 import sys
+from flask import Flask
+app = Flask(__name__)
 
+@app.route('/eits/network_check/<measure_id>')
+def get_measure(measure_id):
+    measures = { 'NET.1.2.M31.a': run_net_1_2_m31_a }
+    returndata = measures[measure_id]()
+    json_data = []
+    json_data.append( {
+        'measure_id': returndata[0],
+        'compliant': returndata[1],
+        'scope': returndata[2],
+        'coverage': returndata[3]
+    })
+    return json.dumps(json_data)
 
-def main():
-    test_net_1_2_m31_a()
 
 
 
@@ -18,7 +30,7 @@ def test_net_1_2_m31_a():
         if (re.search('TLSv1.', key['ciphers']) and not
                 re.search('\sB|\sC|\sD|\sE|\sF|', key['ciphers'])):  # Check cipher strength
             compliant += 1
-    add_data("NET.1.2.M31.a", compliant, scope)
+    return add_data("NET.1.2.M31.a", compliant, scope)
 
 
 def add_data(measure_id, compliant, scope):
@@ -31,6 +43,7 @@ def add_data(measure_id, compliant, scope):
     except mariadb.Error as e:
         print(f"Error adding data to MariaDB: {e}")
     conn.commit()
+    return measure_id, compliant, scope, coverage
 
 
 def get_eitsbot_data(eitsbot_type):

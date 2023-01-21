@@ -3,15 +3,27 @@ import json
 import re
 import mariadb
 import sys
+from flask import Flask
+app = Flask(__name__)
+
+@app.route('/eits/webserver_check/<measure_id>')
+def get_measure(measure_id):
+    measures = { 'CON.10.M14.a': run_con_10_m14_a,
+                 'CON.10.M14.b': run_con_10_m14_b,
+                 'CON.10.M14.d': run_con_10_m14_d,
+    }
+    returndata = measures[measure_id]()
+    json_data = []
+    json_data.append( {
+        'measure_id': returndata[0],
+        'compliant': returndata[1],
+        'scope': returndata[2],
+        'coverage': returndata[3]
+    })
+    return json.dumps(json_data)
 
 
-def main():
-    test_con_10_m14_a()
-    test_con_10_m14_b()
-    test_con_10_m14_d()
-
-
-def test_con_10_m14_a():
+def run_con_10_m14_a():
     structure = get_eitsbot_data('http_sec_headers')
     scope = compliant = 0
     scope = len(structure)
@@ -20,10 +32,10 @@ def test_con_10_m14_a():
             and (re.search('X-Frame-Options: SAMEORIGIN', key['sec_headers']))
                 or re.search('X-Frame-Options: DENY', key['sec_headers'])):
             compliant += 1
-    add_data("CON.10.M14.a", compliant, scope)
+    return add_data("CON.10.M14.a", compliant, scope)
 
 
-def test_con_10_m14_b():
+def run_con_10_m14_b():
     structure = get_eitsbot_data('http_sec_headers')
     scope = compliant = 0
     scope = len(structure)
@@ -43,10 +55,10 @@ def test_con_10_m14_b():
              re.search('Cache-Control: must-revalidate', key['sec_headers']) or
              re.search('Cache-Control: private', key['sec_headers']))):
             compliant += 1
-    add_data("CON.10.M14.b", compliant, scope)
+    return add_data("CON.10.M14.b", compliant, scope)
 
 
-def test_con_10_m14_d():
+def run_con_10_m14_d():
     structure = get_eitsbot_data('http_sec_headers')
     scope = compliant = 0
     scope = len(structure)
@@ -55,7 +67,7 @@ def test_con_10_m14_d():
             re.search('Set-Cookie: .*; HttpOnly', key['sec_headers']) and
                 re.search('Set-Cookie: .*; SameSite', key['sec_headers'])):
             compliant += 1
-    add_data("CON.10.M14.d", compliant, scope)
+    return add_data("CON.10.M14.d", compliant, scope)
 
 
 def add_data(measure_id, compliant, scope):
@@ -68,7 +80,7 @@ def add_data(measure_id, compliant, scope):
     except mariadb.Error as e:
         print(f"Error adding data to MariaDB: {e}")
     conn.commit()
-
+    return measure_id, compliant, scope, coverage
 
 def get_eitsbot_data(eitsbot_type):
     try:
